@@ -1,0 +1,2 @@
+export("ScoreTest_SPA","ScoreTest_wSaddleApprox_NULL_Model")
+importFrom("stats","glm","model.matrix","pchisq","pnorm","qnorm","uniroot")

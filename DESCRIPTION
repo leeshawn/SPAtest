@@ -1,0 +1,11 @@
+Package: SPAtest
+Type: Package
+Title: Score Test Based on Saddlepoint Approximation
+Version: 2.0.0
+Date: 2017-09-17
+Author: Rounak Dey, Seunggeun Lee
+Maintainer: Rounak Dey <deyrnk@umich.edu>
+Description: Performs score test using saddlepoint approximation to estimate the null distribution. 
+Depends: R (>= 3.0.0)
+License: GPL (>=2)
+Repository: CRAN
