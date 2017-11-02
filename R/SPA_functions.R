@@ -27,7 +27,19 @@ ScoreTest_wSaddleApprox_NULL_Model <- function(formula, data=NULL)
 	X1<-ScoreTest_wSaddleApprox_Get_X1(X1)
 	
 	glmfit= glm(formula, data=data, family = "binomial")
-  	mu    = glmfit$fitted.values
+	convflag=0
+	if(glmfit$converged)
+	{
+		mu = glmfit$fitted.values
+		if(mean(mu)/mean(glmfit$y)>0.001 & (1-mean(mu))/(1-mean(glmfit$y))>0.001)	convflag==1	#Check that the null model converged properly with glm
+	}
+	if(convflag==0)
+	{
+		firthfit=fast.logistf.fit(x=X1,y=glmfit$y)
+		eta<-X1%*%firthfit$beta
+  		mu    = as.vector(exp(eta)/(1+exp(eta)))
+	}
+
 	V = mu*(1-mu)
   	res = glmfit$y- mu
 	n1<-length(res)
@@ -36,7 +48,7 @@ ScoreTest_wSaddleApprox_NULL_Model <- function(formula, data=NULL)
 	XVX_inv= solve(t(X1)%*%(X1 * V))
 	XXVX_inv= X1 %*% XVX_inv   
 	
-	re<-list(y=glmfit$y, cov=X1, mu=mu, res=res, V=V, X1=X1, XV=XV, XXVX_inv =XXVX_inv)
+	re<-list(y=glmfit$y, mu=mu, res=res, V=V, X1=X1, XV=XV, XXVX_inv =XXVX_inv)
 	class(re)<-"SA_NULL"
 	return(re)	
 }
@@ -568,7 +580,7 @@ ScoreTest_SPA <-function(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),minm
 		}
 		obj.null<-ScoreTest_wSaddleApprox_NULL_Model(as.matrix(pheno) ~as.matrix(cov))
 	}
-	cov<-obj.null$cov
+	cov<-obj.null$X1
 	pheno<-obj.null$y
 
 	genos<-as.matrix(genos)
