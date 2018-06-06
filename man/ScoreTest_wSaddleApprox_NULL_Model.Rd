@@ -29,6 +29,8 @@ Rounak Dey, \email{deyrnk@umich.edu}
 
 \seealso{
 \code{\link{ScoreTest_SPA}}
+
+\code{\link{ScoreTest_SPA_wMeta}}
 }
 \examples{
 \dontrun{

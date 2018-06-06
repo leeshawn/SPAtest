@@ -1,11 +1,11 @@
 Package: SPAtest
 Type: Package
-Title: Score Test Based on Saddlepoint Approximation
-Version: 2.0.1
-Date: 2017-11-02
+Title: Score Test and Meta-Analysis Based on Saddlepoint Approximation
+Version: 3.0.0
+Date: 2018-06-06
 Author: Rounak Dey, Seunggeun Lee
 Maintainer: Rounak Dey <deyrnk@umich.edu>
-Description: Performs score test using saddlepoint approximation to estimate the null distribution. 
+Description: Performs score test using saddlepoint approximation to estimate the null distribution. Also prepares summary statistics for meta-analysis and performs meta-analysis to combine multiple association results. For the latest version, please check <https://github.com/leeshawn/SPAtest>.
 Depends: R (>= 3.0.0)
 License: GPL (>=2)
 Repository: CRAN

@@ -1,14 +1,16 @@
-\name{ScoreTest_SPA}
-\alias{ScoreTest_SPA}
+\name{ScoreTest_SPA_wMeta}
+\alias{ScoreTest_SPA_wMeta}
 \title{
-Score test based on saddlepoint approximation
+Prepare summary statistics for meta-analysis and perform SPA test.
 }
 \description{
-Performs score test using saddlepoint approximation to estimate the null distribution.
+Performs score test using saddlepoint approximation and prepares summary statistics for meta-analysis.
 }
 \usage{
-ScoreTest_SPA(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),minmac=5,
-Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7)
+ScoreTest_SPA_wMeta(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),minmac=5,
+Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7,
+output=c("P","metaZ","metaGC","metaspline"),nodes.fixed=NULL,
+nodes.init=c(-100,-10,-1,1,10,100))
 }
 \arguments{
   \item{genos}{
@@ -44,6 +46,15 @@ Logical indicating whether log odds ratios (beta parameters) are to be estimated
   \item{beta.Cutoff}{
 Maximum p-value threshold for beta parameters to be estimated, default value is \eqn{5\times 10^{-7}}.
 }
+  \item{output}{
+String specifying the output required. Possible values are "\code{P}" (default), "\code{metaZ}", "\code{metaGC}", and "\code{metaspline}".
+}
+  \item{nodes.fixed}{
+Vector denoting the spline nodes for the spline based summary statistics, if you do not want to provide a fixed set of nodes instead of estimating the optimal set of nodes. Only applicable when the output is "\code{metaspline}".
+}
+  \item{nodes.init}{
+Vector denoting the initial values of the spline nodes when you want to estimate the optimal set of spline nodes using the coordinate descent algorithm. Only applicable when the output is "\code{metaspline}". Ignored if  \code{nodes.fixed} is provided. The node at 0 will be automatically added, no need to provide that. The number of finally selected nodes will be the same as in \code{nodes.init}.
+}
 }
 
 \details{
@@ -57,14 +68,25 @@ Maximum p-value threshold for beta parameters to be estimated, default value is 
 \code{method} = "fastSPA" utilizes the partially normal approximation approach for improved efficiency, especially for rare variants.
 
 Beta parameters are estimated using Firth's method, and thus computationally expensive. Therefore, it is recommended that beta parameters are only to be estimated when the p-value is very small (denoted by \code{beta.Cutoff}). The code for beta estimation is as implemented by Clement Ma in the EPACTS software.
+
+If \code{output} = "P", the output will be the same as running \code{\link{ScoreTest_SPA}}. No summary statistics for meta-analysis is provided.
+
+If \code{output} = "metaZ", the output will be the same as with \code{output} = "P", except the p values in the output will be signed, and minor allele frequencies are also provided. This choice of \code{output} provide required summary statistics for Z score-based meta-analysis.
+
+If \code{output} = "metaGC", the output will be the same as with \code{output} = "P", except the p values in the output will be signed, and genotype counts of homozygous minor and heterozygous genotypes are also provided.  This choice of \code{output} provide required summary statistics for genotype count-based meta-analysis.
+
+If \code{output} = "metaspline", the output will be the same as with \code{output} = "metaGC", additionally spline-based summary statistics are also provided.  This choice of \code{output} provide required summary statistics for spline-based as well as genotype count-based meta-analysis.
 }
 
 \value{
-\item{p.value}{p-value based on the saddlepoint approximation.}
-\item{p.value.NA}{p-value based on the normal approximation (traditional score test).}
+\item{p.value}{p-value based on the saddlepoint approximation. If \code{output} = "P", it is unsigned. For all other choice of \code{output}, it is signed.}
+\item{p.value.NA}{p-value based on the normal approximation (traditional score test).  If \code{output} = "P", it is unsigned. For all other choice of \code{output}, it is signed.}
 \item{Is.converge}{"TRUE" or "FALSE" denoting whether the root-finding algorithm for the saddlepoint equation has converged.}
 \item{beta}{Genotype log-odds ratio estimate.}
 \item{SEbeta}{Standard error for the genotype log-odds ratio.}
+\item{MAF}{Minor allele frequencies. Only provided when \code{output} = "metaZ".}
+\item{GCmat}{Genotype counts for homozygous minor (column 1) and heterozygous genotypes (column 2). Only provided when \code{output} = "metaGC" or "metaspline".}
+\item{spldata}{Spline-based summary statistics on the CGF. Column 1 represents the raw score values, column 2 the variance of those scores, and the next columns represent nodes, first and second derivatives of the CGF in equal sizes. Only provided when \code{output} = "metaspline".}
 }
 \author{
 Rounak Dey, \email{deyrnk@umich.edu}
@@ -79,12 +101,16 @@ Rounak Dey, \email{deyrnk@umich.edu}
 \seealso{
 \code{\link{ScoreTest_wSaddleApprox_NULL_Model}}
 
-\code{\link{ScoreTest_SPA_wMeta}}
+\code{\link{ScoreTest_SPA}}
+
+\code{\link{SPAmeta}}
 }
 \examples{
 \dontrun{
-ScoreTest_SPA(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),
-minmac=5,Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7)
+ScoreTest_SPA_wMeta(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),
+minmac=5,Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7,
+output=c("P","metaZ","metaGC","metaspline"),nodes.fixed=NULL,
+nodes.init=c(-100,-10,-1,1,10,100))
 }
 }
 \keyword{htest}
