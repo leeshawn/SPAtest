@@ -53,6 +53,15 @@ ScoreTest_wSaddleApprox_NULL_Model <- function(formula, data=NULL)
 	return(re)	
 }
 
+add_logp<-function(p1,p2)
+{
+	p1<- -abs(p1)
+	p2<- -abs(p2)
+	maxp<-max(p1,p2)
+	minp<-min(p1,p2)
+	return(maxp+log(1+exp(minp-maxp)))
+}
+
 Korg<-function(t, mu, g)
 {
 	n.t<-length(t)
@@ -164,7 +173,7 @@ getroot_K1<-function(init,mu,g,q,m1,tol=.Machine$double.eps^0.25,maxiter=1000)
 	}
 }
 
-Get_Saddle_Prob<-function(zeta, mu, g, q) 
+Get_Saddle_Prob<-function(zeta, mu, g, q,log.p=FALSE) 
 {
 	k1<-Korg(zeta, mu, g)
 	k2<-K2(zeta, mu, g)
@@ -178,20 +187,26 @@ Get_Saddle_Prob<-function(zeta, mu, g, q)
 	v<- zeta * (k2)^{1/2}
 			
 	Z.test<-w + 1/w * log(v/w)	
+	
 
 	if(Z.test > 0){
-		pval<-pnorm(Z.test, lower.tail = FALSE)
+		pval<-pnorm(Z.test, lower.tail = FALSE,log.p=log.p)
 	} else {
-		pval= -pnorm(Z.test, lower.tail = TRUE)
+		pval= -pnorm(Z.test, lower.tail = TRUE,log.p=log.p)
 	}	
 	} else {
-	pval<-0
+	if(log.p)
+	{
+		pval<- -Inf
+	} else {
+		pval<-0
+	}
 	}
 	
 	return(pval)
 }
 	
-Saddle_Prob<-function(q, mu, g, Cutoff=2,alpha,output="P",nodes.fixed,nodes.init)
+Saddle_Prob<-function(q, mu, g, Cutoff=2,alpha,output="P",nodes.fixed,nodes.init,log.p=FALSE)
 {
 	m1<-sum(mu * g)
 	var1<-sum(mu * (1-mu) * g^2)
@@ -214,7 +229,7 @@ Saddle_Prob<-function(q, mu, g, Cutoff=2,alpha,output="P",nodes.fixed,nodes.init
 	qinv = -sign(q-m1) * abs(q-m1) + m1
 
 	# Noadj
-	pval.noadj<-pchisq((q - m1)^2/var1, lower.tail = FALSE, df=1)
+	pval.noadj<-pchisq((q - m1)^2/var1, lower.tail = FALSE, df=1,log.p=log.p)
 	Is.converge=TRUE
 
  	if(Cutoff=="BE"){
@@ -238,9 +253,18 @@ Saddle_Prob<-function(q, mu, g, Cutoff=2,alpha,output="P",nodes.fixed,nodes.init
 		out.uni2<-getroot_K1(0, mu=mu, g=g, q=qinv)
 		if(out.uni1$Is.converge==TRUE && out.uni2$Is.converge==TRUE)
 		{
-			p1<-Get_Saddle_Prob(out.uni1$root, mu, g, q)
-			p2<-Get_Saddle_Prob(out.uni2$root, mu, g, qinv)
-			pval = abs(p1)+abs(p2)
+			p1<-tryCatch(Get_Saddle_Prob(out.uni1$root, mu, g, q,log.p=log.p),error=function(e) {
+				if(log.p) return(pval.noadj-log(2))
+				else return(pval.noadj/2)})
+			p2<-tryCatch(Get_Saddle_Prob(out.uni2$root, mu, g, qinv,log.p=log.p),error=function(e) {
+				if(log.p) return(pval.noadj-log(2))
+				else return(pval.noadj/2)})
+			if(log.p)
+			{
+				pval = add_logp(p1,p2)
+			} else {
+				pval = abs(p1)+abs(p2)
+			}
 			Is.converge=TRUE
 		} else {
  			print("Error_Converge")
@@ -251,7 +275,7 @@ Saddle_Prob<-function(q, mu, g, Cutoff=2,alpha,output="P",nodes.fixed,nodes.init
 	
 	if(pval!=0 && pval.noadj/pval>10^3)
 	{
-		return(Saddle_Prob(q, mu, g, Cutoff=Cutoff*2,alpha,output,nodes.fixed,nodes.init))
+		return(Saddle_Prob(q, mu, g, Cutoff=Cutoff*2,alpha,output,nodes.fixed,nodes.init,log.p=log.p))
 	} else if(output=="metaspline")
 	{
 		return(list(p.value=pval, p.value.NA=pval.noadj, Is.converge=Is.converge,Score=Score,splfun=splfun,var=var1))
@@ -260,7 +284,7 @@ Saddle_Prob<-function(q, mu, g, Cutoff=2,alpha,output="P",nodes.fixed,nodes.init
 	}
 }
 
-TestSPA<-function(G, obj.null,  Cutoff=2,alpha,output,nodes.fixed=NULL,nodes.init)
+TestSPA<-function(G, obj.null,  Cutoff=2,alpha,output,nodes.fixed=NULL,nodes.init,log.p=FALSE)
 {
 	if(class(obj.null) != "SA_NULL"){
 		stop("obj.null should be a returned object from ScoreTest_wSaddleApprox_NULL_Model")
@@ -278,7 +302,7 @@ TestSPA<-function(G, obj.null,  Cutoff=2,alpha,output,nodes.fixed=NULL,nodes.ini
 	}
 	G1<-G  -  obj.null$XXVX_inv %*%  (obj.null$XV %*% G)
 	q<-sum(G1 * y)
-	out<-Saddle_Prob(q, mu=mu, g=G1,  Cutoff=Cutoff,alpha=alpha,output=output,nodes.fixed=nodes.fixed,nodes.init=nodes.init)
+	out<-Saddle_Prob(q, mu=mu, g=G1,  Cutoff=Cutoff,alpha=alpha,output=output,nodes.fixed=nodes.fixed,nodes.init=nodes.init,log.p=log.p)
 
 	return(out)
 }
@@ -386,7 +410,7 @@ getroot_K1_fast<-function(init,mu,g,q,m1,gNA,gNB,muNA,muNB,NAmu,NAsigma,tol=.Mac
 	}
 }
 
-Get_Saddle_Prob_fast<-function(zeta, mu, g, q,gNA,gNB,muNA,muNB,NAmu,NAsigma)
+Get_Saddle_Prob_fast<-function(zeta, mu, g, q,gNA,gNB,muNA,muNB,NAmu,NAsigma,log.p=FALSE)
 {
 	k1<-Korg_fast(zeta, mu, g,gNA,gNB,muNA,muNB,NAmu,NAsigma)
 	k2<-K2_fast(zeta, mu, g,gNA,gNB,muNA,muNB,NAmu,NAsigma)
@@ -402,18 +426,23 @@ Get_Saddle_Prob_fast<-function(zeta, mu, g, q,gNA,gNB,muNA,muNB,NAmu,NAsigma)
 	Z.test<-w + 1/w * log(v/w)	
 
 	if(Z.test > 0){
-		pval<-pnorm(Z.test, lower.tail = FALSE)
+		pval<-pnorm(Z.test, lower.tail = FALSE,log.p=log.p)
 	} else {
-		pval= -pnorm(Z.test, lower.tail = TRUE)
+		pval= -pnorm(Z.test, lower.tail = TRUE,log.p=log.p)
 	}	
 	} else {
-	pval<-0
+	if(log.p)
+	{
+		pval<- -Inf
+	} else {
+		pval<-0
+	}
 	}
 	
 	return(pval)
 }
 
-Saddle_Prob_fast<-function(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=2,alpha,output,nodes.fixed,nodes.init)
+Saddle_Prob_fast<-function(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=2,alpha,output,nodes.fixed,nodes.init,log.p=FALSE)
 {
 	m1<-sum(mu * g)
 	var1<-sum(mu * (1-mu) * g^2)
@@ -437,7 +466,7 @@ Saddle_Prob_fast<-function(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=2,alpha,output,nodes
 	qinv = -sign(q-m1) * abs(q-m1) + m1
 
 	# Noadj
-	pval.noadj<-pchisq((q - m1)^2/var1, lower.tail = FALSE, df=1)
+	pval.noadj<-pchisq((q - m1)^2/var1, lower.tail = FALSE, df=1,log.p=log.p)
 	Is.converge=TRUE
 
 	if(Cutoff=="BE"){
@@ -463,9 +492,18 @@ Saddle_Prob_fast<-function(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=2,alpha,output,nodes
 		out.uni2<-getroot_K1_fast(0, mu=mu, g=g, q=qinv,gNA=gNA,gNB=gNB,muNA=muNA,muNB=muNB,NAmu=NAmu,NAsigma=NAsigma)
 		if(out.uni1$Is.converge==TRUE && out.uni2$Is.converge==TRUE)
 		{
-			p1<-Get_Saddle_Prob_fast(out.uni1$root, mu, g, q,gNA,gNB,muNA,muNB,NAmu,NAsigma)
-			p2<-Get_Saddle_Prob_fast(out.uni2$root, mu, g, qinv,gNA,gNB,muNA,muNB,NAmu,NAsigma)
-			pval = abs(p1)+abs(p2)
+			p1<-tryCatch(Get_Saddle_Prob_fast(out.uni1$root, mu, g, q,gNA,gNB,muNA,muNB,NAmu,NAsigma,log.p=log.p),error=function(e) {
+				if(log.p) return(pval.noadj-log(2))
+				else return(pval.noadj/2)})
+			p2<-tryCatch(Get_Saddle_Prob_fast(out.uni2$root, mu, g, qinv,gNA,gNB,muNA,muNB,NAmu,NAsigma,log.p=log.p),error=function(e) {
+				if(log.p) return(pval.noadj-log(2))
+				else return(pval.noadj/2)})
+			if(log.p)
+			{
+				pval = add_logp(p1,p2)
+			} else {
+				pval = abs(p1)+abs(p2)
+			}
 			Is.converge=TRUE
 		} else {
  			print("Error_Converge")
@@ -477,7 +515,7 @@ Saddle_Prob_fast<-function(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=2,alpha,output,nodes
 	
 	if(pval!=0 && pval.noadj/pval>10^3)
 	{
-		return(Saddle_Prob_fast(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=Cutoff*2,alpha,output,nodes.fixed,nodes.init))
+		return(Saddle_Prob_fast(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=Cutoff*2,alpha,output,nodes.fixed,nodes.init,log.p=log.p))
 	} else if(output=="metaspline")
 	{
 		return(list(p.value=pval, p.value.NA=pval.noadj, Is.converge=Is.converge, Score=Score,splfun=splfun,var=var1))
@@ -486,7 +524,7 @@ Saddle_Prob_fast<-function(q, g,mu,gNA,gNB,muNA,muNB,Cutoff=2,alpha,output,nodes
 	}
 }
 
-TestSPAfast<-function(G, obj.null, output, Cutoff=2,alpha,nodes.fixed,nodes.init)
+TestSPAfast<-function(G, obj.null, output, Cutoff=2,alpha,nodes.fixed,nodes.init,log.p=FALSE)
 {
 	if(class(obj.null) != "SA_NULL"){
 		stop("obj.null should be a returned object from ScoreTest_wSaddleApprox_NULL_Model")
@@ -509,11 +547,11 @@ TestSPAfast<-function(G, obj.null, output, Cutoff=2,alpha,nodes.fixed,nodes.init
 
 	if(length(NAset)/length(G)<0.5)
 	{
-		out<-Saddle_Prob(q, mu=mu, g=g,  Cutoff=Cutoff,alpha=alpha, output=output,nodes.fixed=nodes.fixed,nodes.init=nodes.init)
+		out<-Saddle_Prob(q, mu=mu, g=g,  Cutoff=Cutoff,alpha=alpha, output=output,nodes.fixed=nodes.fixed,nodes.init=nodes.init,log.p=log.p)
 	} else {
 
 	out<-Saddle_Prob_fast(q,g=g,mu=mu,gNA=g[NAset],gNB=g[-NAset],
-muNA=mu[NAset],muNB=mu[-NAset], Cutoff=Cutoff,alpha=alpha,output=output,nodes.fixed=nodes.fixed,nodes.init=nodes.init)
+muNA=mu[NAset],muNB=mu[-NAset], Cutoff=Cutoff,alpha=alpha,output=output,nodes.fixed=nodes.fixed,nodes.init=nodes.init,log.p=log.p)
 	}
 
 
@@ -778,7 +816,7 @@ repeat{
 
 
 
-ScoreTest_SPA <-function(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),minmac=5,Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7)
+ScoreTest_SPA <-function(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),minmac=5,Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7,log.p=FALSE)
 {
 	method<-match.arg(method)
 
@@ -823,9 +861,9 @@ ScoreTest_SPA <-function(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),minm
 		{
 			if(method=="fastSPA")
 			{
-				re <- TestSPAfast(as.vector(genos[i,,drop=FALSE]), obj.null, Cutoff=Cutoff, alpha=alpha, output="P")
+				re <- TestSPAfast(as.vector(genos[i,,drop=FALSE]), obj.null, Cutoff=Cutoff, alpha=alpha, output="P", log.p=log.p)
 			} else {
-				re <- TestSPA(as.vector(genos[i,,drop=FALSE]), obj.null,Cutoff=Cutoff, alpha=alpha, output="P")
+				re <- TestSPA(as.vector(genos[i,,drop=FALSE]), obj.null,Cutoff=Cutoff, alpha=alpha, output="P",log.p=log.p)
 			}
 			p.value[i] <- re$p.value
 			p.value.NA[i] <- re$p.value.NA
@@ -1104,8 +1142,8 @@ Saddle_Prob_MAC<-function(q, p, m1,var1,n0,n1,n2,g, Cutoff=2)
 		out.uni2<-getroot_K1_MAC(0, p=p,n0=n0,n1=n1,n2=n2, g=g,q=qinv)
 		if(out.uni1$Is.converge==TRUE && out.uni2$Is.converge==TRUE)
 		{
-			p1<-Get_Saddle_Prob_MAC(out.uni1$root, p,n0,n1,n2,g, q)
-			p2<-Get_Saddle_Prob_MAC(out.uni2$root,  p,n0,n1,n2,g, qinv)
+			p1<-tryCatch(Get_Saddle_Prob_MAC(out.uni1$root, p,n0,n1,n2,g, q),error=function(e) {return(pval.noadj/2)})
+			p2<-tryCatch(Get_Saddle_Prob_MAC(out.uni2$root,  p,n0,n1,n2,g, qinv),error=function(e) {return(pval.noadj/2)})
 			pval = abs(p1)+abs(p2)
 			Is.converge=TRUE
 		} else {
@@ -1344,8 +1382,8 @@ Hybrid_meta<-function(q_Normal,Var_Normal,q_GC,mu_GC,g_GC,NAset,spldata,Cutoff)
 		out.uni2<-getroot_K1_meta(0, q=qinv,gNB=gNB,muNB=muNB,NAmu=NAmu,NAsigma=NAsigma,nodes=nodes,splfuny1=splfuny1,splfuny2=splfuny2)
 		if(out.uni1$Is.converge==TRUE && out.uni2$Is.converge==TRUE)
 		{
-			p1<-Get_Saddle_Prob_meta(out.uni1$root, q,gNB,muNB,NAmu,NAsigma,nodes,splfuny1,splfuny2)
-			p2<-Get_Saddle_Prob_meta(out.uni2$root, qinv,gNB,muNB,NAmu,NAsigma,nodes,splfuny1,splfuny2)
+			p1<-tryCatch(Get_Saddle_Prob_meta(out.uni1$root, q,gNB,muNB,NAmu,NAsigma,nodes,splfuny1,splfuny2),error=function(e) {return(pval.noadj/2)})
+			p2<-tryCatch(Get_Saddle_Prob_meta(out.uni2$root, qinv,gNB,muNB,NAmu,NAsigma,nodes,splfuny1,splfuny2),error=function(e) {return(pval.noadj/2)})
 			pval = abs(p1)+abs(p2)
 			Is.converge=TRUE
 		} else {

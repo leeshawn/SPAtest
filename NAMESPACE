@@ -1,2 +1,2 @@
-export("ScoreTest_SPA","ScoreTest_wSaddleApprox_NULL_Model","ScoreTest_SPA_wMeta","SPAmeta")
+export("ScoreTest_SPA","ScoreTest_wSaddleApprox_NULL_Model","ScoreTest_SPA_wMeta","SPAmeta","Saddle_Prob","Saddle_Prob_fast")
 importFrom("stats","glm","model.matrix","pchisq","pnorm","qnorm","uniroot","splinefunH","integrate","na.omit")

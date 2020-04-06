@@ -8,7 +8,7 @@ Performs score test using saddlepoint approximation to estimate the null distrib
 }
 \usage{
 ScoreTest_SPA(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),minmac=5,
-Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7)
+Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7,log.p=FALSE)
 }
 \arguments{
   \item{genos}{
@@ -44,6 +44,9 @@ Logical indicating whether log odds ratios (beta parameters) are to be estimated
   \item{beta.Cutoff}{
 Maximum p-value threshold for beta parameters to be estimated, default value is \eqn{5\times 10^{-7}}.
 }
+  \item{log.p}{
+Whether to return natural log-transformed p-values, default value is \code{FALSE}. NOTE: log-transformed p-values are not compatible with Meta-analysis using this package.
+}
 }
 
 \details{
@@ -60,8 +63,8 @@ Beta parameters are estimated using Firth's method, and thus computationally exp
 }
 
 \value{
-\item{p.value}{p-value based on the saddlepoint approximation.}
-\item{p.value.NA}{p-value based on the normal approximation (traditional score test).}
+\item{p.value}{p-value or natural log-transformed p-value based on the saddlepoint approximation.}
+\item{p.value.NA}{p-value or natural log-transformed p-value based on the normal approximation (traditional score test).}
 \item{Is.converge}{"TRUE" or "FALSE" denoting whether the root-finding algorithm for the saddlepoint equation has converged.}
 \item{beta}{Genotype log-odds ratio estimate.}
 \item{SEbeta}{Standard error for the genotype log-odds ratio.}
@@ -84,7 +87,7 @@ Rounak Dey, \email{deyrnk@umich.edu}
 \examples{
 \dontrun{
 ScoreTest_SPA(genos,pheno,cov,obj.null,method=c("fastSPA","SPA"),
-minmac=5,Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7)
+minmac=5,Cutoff=2,alpha=5*10^-8,missing.id=NA,beta.out=FALSE,beta.Cutoff=5*10^-7,log.p=FALSE)
 }
 }
 \keyword{htest}
